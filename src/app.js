@@ -21,6 +21,7 @@ function createApp(store) {
       status: db === 'ok' ? 'ok' : 'degraded',
       db,
       version: process.env.APP_VERSION || 'dev',
+      timestamp: new Date().toISOString(),
     });
   });
 
