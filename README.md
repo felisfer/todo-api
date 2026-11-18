@@ -17,7 +17,7 @@ lo interesante es todo lo que la rodea.
 ## Qué hay en el repositorio
 
 | Ruta | Qué demuestra |
-|------|---------------|---------------------|
+|------|---------------|
 | `src/`, `tests/` | App con healthcheck, métricas y logs estructurados; pruebas con Jest |
 | `.github/workflows/ci.yml` | CI: matriz de Node, lint, pruebas, build de imagen, escaneo, push a GHCR |
 | `.github/workflows/cd.yml` | CD: staging automático, producción con aprobación, rollback manual |
