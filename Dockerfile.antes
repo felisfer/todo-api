@@ -1,0 +1,10 @@
+# Dockerfile "ANTES" — ejemplo de MALAS PRÁCTICAS para comparar en la demo.
+# NO usar en producción. Construir con:
+#   docker build -f Dockerfile.antes -t todo-api:antes .
+#   docker build -t todo-api:despues .
+#   docker images todo-api
+FROM node:24
+WORKDIR /app
+COPY . .
+RUN npm install
+CMD ["node", "src/server.js"]

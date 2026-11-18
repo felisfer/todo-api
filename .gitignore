@@ -1,0 +1,16 @@
+node_modules/
+coverage/
+.env
+
+# Secretos locales (Docker secrets)
+secrets/*
+!secrets/.gitkeep
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# Los genera infra/bootstrap con el bucket de cada cuenta
+infra/app/*.s3.tfbackend

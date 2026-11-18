@@ -1,0 +1,8 @@
+#!/bin/bash
+# Se ejecuta UNA vez, al crear la instancia.
+set -euxo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+
+docker run -d --name todo-api --restart unless-stopped -p 80:3000 ${image}

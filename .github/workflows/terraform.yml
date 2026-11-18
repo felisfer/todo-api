@@ -1,0 +1,30 @@
+name: Terraform
+
+# Revisión automática de la infraestructura en cada PR que toque infra/.
+# Solo valida formato y sintaxis (no necesita credenciales de AWS).
+# El plan/apply se hace localmente o con un rol dedicado; ver docs/INFRA.md.
+on:
+  pull_request:
+    paths: ["infra/**"]
+  push:
+    branches: [main]
+    paths: ["infra/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir: [infra/bootstrap, infra/app]
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate

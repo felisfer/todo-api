@@ -1,0 +1,88 @@
+name: CD
+
+# Se ejecuta cuando el workflow "CI" termina en main.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Permite re-desplegar (o hacer ROLLBACK) a mano a un SHA específico.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente destino
+        type: choice
+        options: [staging, production]
+        default: staging
+      sha:
+        description: SHA completo del commit (tag de la imagen) a desplegar
+        required: true
+
+# Credenciales de AWS: se configura UNA de las dos opciones (ver docs/INFRA.md).
+#   - OIDC (lo ideal):  variable AWS_ROLE_ARN. Credenciales temporales, sin llaves.
+#   - Plan B (llaves):  secretos AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY en los
+#                       ambientes staging y production. Se usa cuando una SCP de
+#                       la organización impide crear el proveedor OIDC.
+permissions:
+  contents: read
+  id-token: write    # solo lo usa la opción OIDC
+
+# Nunca dos despliegues al mismo ambiente a la vez.
+concurrency:
+  group: cd-${{ github.event.inputs.environment || 'pipeline' }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+
+jobs:
+  # --- Despliegue manual (rollback o re-deploy) ---
+  manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: bash scripts/deploy.sh "${{ github.event.inputs.environment }}" "${{ github.event.inputs.sha }}"
+
+  # --- Pipeline automático: staging sin intervención ---
+  deploy-staging:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: deploy
+        run: bash scripts/deploy.sh staging "${{ github.event.workflow_run.head_sha }}"
+
+  # --- Producción: requiere aprobación (Settings > Environments > production) ---
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: deploy
+        run: bash scripts/deploy.sh production "${{ github.event.workflow_run.head_sha }}"

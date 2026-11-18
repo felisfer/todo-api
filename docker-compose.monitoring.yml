@@ -1,0 +1,40 @@
+# Observabilidad local. Levantar junto con la app:
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml \
+#                  -f docker-compose.monitoring.yml up -d
+# Prometheus: http://localhost:9090   Grafana: http://localhost:3001 (admin / admin)
+services:
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.3.1
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on: [prometheus]
+
+  # Genera tráfico de fondo para que las gráficas no estén vacías en la demo.
+  loadgen:
+    image: curlimages/curl:8.23.0
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          curl -s -o /dev/null http://api:3000/todos
+          curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{"title":"carga"}' http://api:3000/todos
+          curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{}' http://api:3000/todos
+          curl -s -o /dev/null http://api:3000/no-existe
+          sleep 0.5
+        done
+    depends_on: [api]

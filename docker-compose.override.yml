@@ -1,0 +1,12 @@
+# Solo DESARROLLO: se carga automáticamente con `docker compose up`.
+# Construye la imagen local y recarga el código al guardar.
+services:
+  api:
+    build:
+      context: .
+    image: todo-api:dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./src:/app/src
+    command: ["node", "--watch", "src/server.js"]

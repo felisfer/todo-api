@@ -1,0 +1,41 @@
+# Configuración BASE (la que se parece a producción).
+# En desarrollo, Compose combina automáticamente este archivo con
+# docker-compose.override.yml. Para usar SOLO la base (imagen publicada):
+#   docker compose -f docker-compose.yml up -d
+services:
+  api:
+    image: ghcr.io/${GHCR_OWNER:-felisfer}/todo-api:${TAG:-latest}
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_USER: postgres
+      DB_NAME: todos
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: todos
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt

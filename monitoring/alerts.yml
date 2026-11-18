@@ -1,0 +1,32 @@
+# Alertas por SÍNTOMAS (lo que ve el usuario), no por causas.
+groups:
+  - name: todo-api
+    rules:
+      - alert: TasaDeErroresAlta
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status=~"5.."}[5m]))
+            /
+          sum(rate(http_request_duration_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Más del 5% de las peticiones están fallando (5xx)"
+
+      - alert: LatenciaP95Alta
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.3
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "La latencia p95 supera 300 ms"
+
+      - alert: ApiCaida
+        expr: up{job="todo-api"} == 0
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "Prometheus no puede leer /metrics de la API"
