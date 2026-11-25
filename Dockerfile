@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Etapa 1: dependencias de producción ----
-FROM node:24-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 # Copiar primero SOLO los manifiestos: esta capa se cachea mientras
 # no cambien las dependencias, aunque el código cambie en cada commit.
@@ -9,7 +9,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # ---- Etapa 2: imagen final ----
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production \
